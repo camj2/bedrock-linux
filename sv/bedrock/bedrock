@@ -1,0 +1,69 @@
+#!/bin/sh
+
+set -e
+
+GAME_EXEC='.'
+GAME_NAME='bedrock'
+
+server_exec() {
+  if ! cd -- "$GAME_EXEC" 2> /dev/null; then
+    die "bedrock directory not found"
+  fi
+
+  if [ ! -x ./bedrock_server ]; then
+    die "bedrock executable not found"
+  fi
+
+  if ! pkg screen; then
+    die "screen not installed"
+  fi
+
+  exec screen -Dm -S "$GAME_NAME" \
+    env LD_LIBRARY_PATH=. ./bedrock_server
+}
+
+server_tty() {
+  if ! screen -S "$GAME_NAME" -r; then
+    die "server not running"
+  fi
+}
+
+server_cmd() {
+  if ! screen -S "$GAME_NAME" -X stuff "${*}\r"; then
+    die "server not running"
+  fi
+}
+
+pkg() {
+  command -v "$1" > /dev/null
+}
+
+die() {
+  printf "%s: %s\n" "${0##*/}" "$*" >&2
+  exit 1
+}
+
+while getopts csr:S: opt; do
+  case $opt in
+    c)
+      server_tty
+      exit $?
+      ;;
+    s)
+      server_cmd stop
+      exit $?
+      ;;
+    r)
+      GAME_EXEC="$OPTARG"
+      ;;
+    S)
+      GAME_NAME="$OPTARG"
+      ;;
+    *)
+      die "unknown option"
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+server_exec
